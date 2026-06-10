@@ -65,10 +65,6 @@ export class RingBuffer {
     return this.buffer.length
   }
 
-  flush(): void {
-    // No-op in new implementation
-  }
-
   clear(): void {
     this.buffer = ''
   }
