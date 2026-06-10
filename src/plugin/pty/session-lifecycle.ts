@@ -1,4 +1,4 @@
-import { spawn, type IPty } from 'bun-pty'
+import { spawn, type IPty } from '@lydell/node-pty'
 import { RingBuffer } from './buffer.ts'
 import type { PTYSession, PTYSessionInfo, SpawnOptions } from './types.ts'
 import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../constants.ts'
@@ -123,8 +123,8 @@ export class SessionLifecycleManager {
     session.process?.onExit(({ exitCode, signal }) => {
       this.clearSessionTimeout(session.id)
 
-      // Flush any remaining incomplete line in the buffer
-      session.buffer.flush()
+      // No explicit flush needed: RingBuffer.splitBufferLines() preserves the
+      // trailing partial line when the buffer does not end with '\n'.
 
       if (session.status === 'killing') {
         session.status = 'killed'

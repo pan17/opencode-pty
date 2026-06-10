@@ -1,31 +1,15 @@
 import type { OpencodeClient } from '@opencode-ai/sdk'
-import { semver } from 'bun'
-import { Terminal } from 'bun-pty'
-import { version as bunPtyVersion } from 'bun-pty/package.json'
 import { NotificationManager } from './notification-manager.ts'
 import { OutputManager } from './output-manager.ts'
 import { SessionLifecycleManager } from './session-lifecycle.ts'
 import type { PTYSessionInfo, ReadResult, SearchResult, SpawnOptions } from './types.ts'
 import { withSession } from './utils.ts'
 
-// Monkey-patch bun-pty to fix race condition in _startReadLoop
-// Temporary workaround until https://github.com/sursaone/bun-pty/pull/37 is merged
-if (semver.order(bunPtyVersion, '0.4.8') > 0) {
-  throw new Error(
-    `bun-pty version ${bunPtyVersion} is too new for patching; remove the workaround.`
-  )
-}
-
-const proto = Terminal.prototype as unknown as { _startReadLoop?: (...args: unknown[]) => unknown }
-
-const original = proto._startReadLoop
-
-if (typeof original === 'function') {
-  proto._startReadLoop = async function (this: InstanceType<typeof Terminal>, ...args: unknown[]) {
-    await Promise.resolve() // Yield to allow event handlers to be registered
-    return original.apply(this, args)
-  }
-}
+// Note: The previous bun-pty monkey-patch for the `_startReadLoop` race condition
+// (https://github.com/sursaone/bun-pty/pull/37) is no longer needed. We migrated
+// to @lydell/node-pty (Node ESM plugin host compatible) which does not have that
+// race. If a similar issue surfaces with @lydell/node-pty, patch its Terminal
+// prototype here in the same pattern.
 
 type SessionUpdateCallback = (session: PTYSessionInfo) => void
 
@@ -37,9 +21,10 @@ export function registerSessionUpdateCallback(callback: SessionUpdateCallback) {
 
 export function removeSessionUpdateCallback(callback: SessionUpdateCallback) {
   const index = sessionUpdateCallbacks.indexOf(callback)
-  if (index !== -1) {
-    sessionUpdateCallbacks.splice(index, 1)
+  if (index < 0) {
+    return
   }
+  sessionUpdateCallbacks.splice(index, 1)
 }
 
 function notifySessionUpdate(session: PTYSessionInfo) {
@@ -62,9 +47,10 @@ export function registerRawOutputCallback(callback: RawOutputCallback): void {
 
 export function removeRawOutputCallback(callback: RawOutputCallback): void {
   const index = rawOutputCallbacks.indexOf(callback)
-  if (index !== -1) {
-    rawOutputCallbacks.splice(index, 1)
+  if (index < 0) {
+    return
   }
+  rawOutputCallbacks.splice(index, 1)
 }
 
 function notifyRawOutput(session: PTYSessionInfo, rawData: string): void {
