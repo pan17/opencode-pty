@@ -1,7 +1,8 @@
 import { tool } from '@opencode-ai/plugin'
 import { manager } from '../manager.ts'
 import { checkCommandPermission, checkWorkdirPermission } from '../permissions.ts'
-import DESCRIPTION from './spawn.txt'
+import { SPAWN_DESCRIPTION } from './spawn-description.ts'
+const DESCRIPTION = SPAWN_DESCRIPTION
 
 const NOTIFY_ON_EXIT_INSTRUCTIONS = [
   `<system_reminder>`,

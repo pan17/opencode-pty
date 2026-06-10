@@ -2,7 +2,8 @@ import { tool } from '@opencode-ai/plugin'
 import { manager } from '../manager.ts'
 import { checkCommandPermission } from '../permissions.ts'
 import { buildSessionNotFoundError } from '../utils.ts'
-import DESCRIPTION from './write.txt'
+import { WRITE_DESCRIPTION } from './write-description.ts'
+const DESCRIPTION = WRITE_DESCRIPTION
 
 const ETX = String.fromCharCode(3)
 const EOT = String.fromCharCode(4)

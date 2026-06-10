@@ -4,7 +4,8 @@ import { DEFAULT_READ_LIMIT, MAX_LINE_LENGTH } from '../../../shared/constants.t
 import { buildSessionNotFoundError } from '../utils.ts'
 import { formatLine } from '../formatters.ts'
 import type { PTYSessionInfo } from '../types.ts'
-import DESCRIPTION from './read.txt'
+import { READ_DESCRIPTION } from './read-description.ts'
+const DESCRIPTION = READ_DESCRIPTION
 
 const NOTIFY_ON_EXIT_REMINDER = [
   `<system_reminder>`,
@@ -23,6 +24,33 @@ function buildTimeoutReminder(session: PTYSessionInfo): string {
     `Use \`pty_read\` to inspect the final output or \`pty_list\` to review other sessions.`,
     `</system_reminder>`,
   ].join('\n')
+}
+
+/**
+ * Build a context-aware message for an empty buffer read.
+ * Differentiates between: process still running, process exited cleanly,
+ * process killed, and offset out of range.
+ */
+function buildEmptyBufferMessage(
+  session: PTYSessionInfo,
+  offset: number,
+  totalLines: number
+): string {
+  if (totalLines > 0) {
+    return `(No more lines past offset ${offset}. Buffer has ${totalLines} total line${totalLines === 1 ? '' : 's'}. Use offset=0 to read from the beginning.)`
+  }
+  switch (session.status) {
+    case 'running':
+      return '(No output yet — process is running, buffer is empty. Wait for the process to produce output, or use `notifyOnExit=true` on `pty_spawn` to be notified when it finishes.)'
+    case 'exited':
+      return `(Process exited${session.exitCode !== undefined ? ` with code ${session.exitCode}` : ''} but produced no output.)`
+    case 'killed':
+      return `(Process was killed${session.exitSignal !== undefined ? ` by signal ${session.exitSignal}` : ''} without producing output.)`
+    case 'killing':
+      return '(Process is being terminated. No output was produced.)'
+    default:
+      return '(No output available - buffer is empty)'
+  }
 }
 
 interface ReadArgs {
@@ -159,10 +187,11 @@ function handlePlainRead(
   }
 
   if (result.lines.length === 0) {
+    const message = buildEmptyBufferMessage(session, offset, result.totalLines)
     return appendSessionReminders(
       [
         `<pty_output id="${args.id}" status="${session.status}">`,
-        `(No output available - buffer is empty)`,
+        message,
         `Total lines: ${result.totalLines}`,
         `</pty_output>`,
       ].join('\n'),
