@@ -98,7 +98,7 @@ jobs:
             printf '%s\n' '```json'
             printf '%s\n' '{'
             printf '%s\n' '  "$schema": "https://opencode.ai/config.json",'
-            printf '%s\n' '  "plugin": ["opencode-pty"]'
+            printf '%s\n' '  "plugin": ["@panpan2026/opencode-pty"]'
             printf '%s\n' '}'
             printf '%s\n' '```'
             echo ""
@@ -107,7 +107,7 @@ jobs:
             echo "To get the latest version:"
             echo ""
             printf '%s\n' '```bash'
-            printf '%s\n' 'rm -rf ~/.cache/opencode/node_modules/opencode-pty'
+            printf '%s\n' 'rm -rf ~/.cache/opencode/node_modules/@panpan2026/opencode-pty'
             printf '%s\n' 'opencode'
             printf '%s\n' '```'
           } >"$BODY_FILE"
@@ -128,6 +128,8 @@ jobs:
       - name: Publish to npm
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
