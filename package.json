@@ -1,14 +1,18 @@
 {
-  "name": "opencode-pty",
+  "name": "@panpan2026/opencode-pty",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.js",
-  "version": "0.3.4",
-  "description": "OpenCode plugin for interactive PTY management - run background processes, send input, read output with regex filtering",
-  "author": "shekohex",
+  "version": "0.4.0",
+  "description": "Node ESM fork of opencode-pty for OpenCode 1.4+ - interactive PTY management, background processes, input/output with regex filtering",
+  "author": "panpan2026",
+  "contributors": [
+    "shekohex <dev+github@shadykhalifa.me> (original author)"
+  ],
   "keywords": [
     "opencode",
     "opencode-plugin",
+    "opencode-1.4",
     "pty",
     "pseudo-terminal",
     "terminal",
@@ -17,19 +21,26 @@
     "cli",
     "shell",
     "dev-server",
-    "bun"
+    "node",
+    "esm"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shekohex/opencode-pty.git"
+    "url": "git+https://github.com/pan17/opencode-pty.git"
   },
   "bugs": {
-    "url": "https://github.com/shekohex/opencode-pty/issues"
+    "url": "https://github.com/pan17/opencode-pty/issues"
   },
-  "homepage": "https://github.com/shekohex/opencode-pty#readme",
+  "homepage": "https://github.com/pan17/opencode-pty#readme",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "license": "MIT",
   "type": "module",
   "exports": {

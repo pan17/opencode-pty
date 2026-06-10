@@ -1,5 +1,9 @@
 # opencode-pty
 
+> **Fork notice (`@panpan2026/opencode-pty` 0.4.0)**: This is a community fork that adds **Node ESM support for OpenCode 1.4+**. Upstream `opencode-pty` (by `shekohex`) targets the old Bun-based plugin host used by OpenCode < 1.4 and will fail to load on OpenCode 1.4+. This fork replaces `bun-pty` with `@lydell/node-pty` and rewrites the bundled web server from `Bun.serve` to `node:http + ws`, so the plugin loads cleanly under OpenCode 1.4+'s Node ESM plugin host. Tracking upstream at <https://github.com/shekohex/opencode-pty>.
+
+---
+
 A plugin for [OpenCode](https://opencode.ai) that provides interactive PTY (pseudo-terminal) management, enabling the AI agent to run background processes, send interactive input, and read output on demand.
 
 ## Why?
@@ -40,7 +44,7 @@ Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-pty"]
+  "plugin": ["@panpan2026/opencode-pty"]
 }
 ```
 
@@ -53,7 +57,7 @@ OpenCode automatically checks for and installs plugin updates on startup. You do
 If you ever need to force a clean reinstall, you can clear the cache:
 
 ```bash
-rm -rf ~/.cache/opencode/node_modules/opencode-pty
+rm -rf ~/.cache/opencode/node_modules/@panpan2026/opencode-pty
 opencode
 ```
 
