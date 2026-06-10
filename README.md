@@ -27,6 +27,12 @@ This plugin gives the agent full control over multiple terminal sessions, like t
 - **Web UI**: Modern React-based interface for session management
 - **Real-time Streaming**: WebSocket-based live output updates
 
+## Requirements
+
+- **OpenCode 1.4.0 or later** — earlier versions used a Bun-based plugin host that no longer matches this plugin's runtime. The plugin will fail to load on OpenCode < 1.4.0.
+- **Node.js 22 or later** — required for `import.meta.dirname` and other ESM features used by the bundled web server. The plugin's `engines.node` field enforces this.
+- **Operating system** — the underlying `@lydell/node-pty` binding ships prebuilt binaries for macOS (x64 / arm64), Linux (x64 / arm64), and Windows (x64 / arm64). No compiler toolchain is needed at install time.
+
 ## Setup
 
 Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
@@ -277,7 +283,7 @@ This plugin respects OpenCode's [permission settings](https://opencode.ai/docs/p
 
 ## How It Works
 
-1. **Spawn**: Creates a PTY using [bun-pty](https://github.com/nicksrandall/bun-pty), runs command in background
+1. **Spawn**: Creates a PTY using [@lydell/node-pty](https://github.com/lydell/node-pty) (prebuilt native bindings for macOS / Linux / Windows), runs command in background
 2. **Buffer**: Output is captured into a rolling line buffer (ring buffer)
 3. **Read**: Agent can read buffer anytime with offset/limit pagination
 4. **Filter**: Optional regex pattern filters lines before pagination
@@ -364,7 +370,7 @@ sequenceDiagram
     participant Agent as AI Agent
     participant Plugin as PTY Plugin
     participant Manager as PTY Manager
-    participant PTY as bun-pty Process
+    participant PTY as @lydell/node-pty Process
     participant WS as WebSocket Server
     participant UI as PTY Web UI (optional)
 
@@ -394,7 +400,7 @@ sequenceDiagram
     participant UI as PTY Web UI
     participant WS as WebSocket Server
     participant Manager as PTY Manager
-    participant PTY as bun-pty Process
+    participant PTY as @lydell/node-pty Process
 
     %% Variant A: Human typing in browser (most common)
     User->>UI: Types "rs<Enter>" or pastes text
@@ -443,7 +449,7 @@ sequenceDiagram
     participant UI as PTY Web UI
     participant HTTP as HTTP Server
     participant Manager as PTY Manager
-    participant PTY as bun-pty Process
+    participant PTY as @lydell/node-pty Process
     participant WS as WebSocket Server
 
     Note over PTY: Assuming PTY is active (running process)<br>notifyOnExit = false (no chat notification,<br>but WS/UI always gets status updates)
@@ -469,7 +475,7 @@ sequenceDiagram
     participant Agent as AI Agent
     participant Plugin as PTY Plugin
     participant Manager as PTY Manager
-    participant PTY as bun-pty Process
+    participant PTY as @lydell/node-pty Process
     participant WS as WebSocket Server
     participant UI as PTY Web UI (optional)
 
@@ -497,7 +503,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant PTY as bun-pty Process
+    participant PTY as @lydell/node-pty Process
     participant Manager as PTY Manager
     participant Plugin as PTY Plugin
     participant Chat as OpenCode Chat
@@ -533,4 +539,4 @@ Contributions are welcome! Please open an issue or submit a PR.
 ## Credits
 
 - [OpenCode](https://opencode.ai) - The AI coding assistant this plugin extends
-- [bun-pty](https://github.com/nicksrandall/bun-pty) - Cross-platform PTY for Bun
+- [@lydell/node-pty](https://github.com/lydell/node-pty) - Cross-platform PTY for Node.js (fork of [microsoft/node-pty](https://github.com/microsoft/node-pty) with prebuilt binaries)
