@@ -280,6 +280,169 @@ describe('PTY Tools', () => {
         'Potentially dangerous regex pattern rejected'
       )
     })
+
+    it('should report "no output yet" when buffer empty and session is running', async () => {
+      spyOn(manager, 'get').mockReturnValue({
+        id: 'test-session-id',
+        title: 'Test Session',
+        description: 'A session for testing',
+        command: 'echo',
+        args: ['hello'],
+        workdir: '/tmp',
+        status: 'running',
+        notifyOnExit: false,
+        timeoutSeconds: undefined,
+        timedOut: false,
+        pid: 12345,
+        createdAt: new Date().toISOString(),
+        lineCount: 0,
+      })
+      spyOn(manager, 'read').mockReturnValue({
+        lines: [],
+        offset: 0,
+        hasMore: false,
+        totalLines: 0,
+      })
+
+      const ctx = {
+        sessionID: 'parent',
+        messageID: 'msg',
+        agent: 'agent',
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+        directory: '/tmp',
+        worktree: '/tmp',
+      }
+
+      const result = await ptyRead.execute({ id: 'test-session-id' }, ctx)
+
+      expect(result).toContain('No output yet')
+      expect(result).toContain('process is running')
+      expect(result).toContain('Total lines: 0')
+    })
+
+    it('should report "exited with code N" when buffer empty and session exited', async () => {
+      spyOn(manager, 'get').mockReturnValue({
+        id: 'test-session-id',
+        title: 'Test Session',
+        description: 'A session for testing',
+        command: 'cmd',
+        args: ['/c', 'exit', '7'],
+        workdir: '/tmp',
+        status: 'exited',
+        notifyOnExit: false,
+        timeoutSeconds: undefined,
+        timedOut: false,
+        exitCode: 7,
+        pid: 12345,
+        createdAt: new Date().toISOString(),
+        lineCount: 0,
+      })
+      spyOn(manager, 'read').mockReturnValue({
+        lines: [],
+        offset: 0,
+        hasMore: false,
+        totalLines: 0,
+      })
+
+      const ctx = {
+        sessionID: 'parent',
+        messageID: 'msg',
+        agent: 'agent',
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+        directory: '/tmp',
+        worktree: '/tmp',
+      }
+
+      const result = await ptyRead.execute({ id: 'test-session-id' }, ctx)
+
+      expect(result).toContain('Process exited with code 7')
+      expect(result).toContain('produced no output')
+    })
+
+    it('should report "killed by signal" when buffer empty and session was killed', async () => {
+      spyOn(manager, 'get').mockReturnValue({
+        id: 'test-session-id',
+        title: 'Test Session',
+        description: 'A session for testing',
+        command: 'ping',
+        args: [],
+        workdir: '/tmp',
+        status: 'killed',
+        notifyOnExit: false,
+        timeoutSeconds: undefined,
+        timedOut: false,
+        exitSignal: 'SIGTERM',
+        pid: 12345,
+        createdAt: new Date().toISOString(),
+        lineCount: 0,
+      })
+      spyOn(manager, 'read').mockReturnValue({
+        lines: [],
+        offset: 0,
+        hasMore: false,
+        totalLines: 0,
+      })
+
+      const ctx = {
+        sessionID: 'parent',
+        messageID: 'msg',
+        agent: 'agent',
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+        directory: '/tmp',
+        worktree: '/tmp',
+      }
+
+      const result = await ptyRead.execute({ id: 'test-session-id' }, ctx)
+
+      expect(result).toContain('Process was killed by signal SIGTERM')
+    })
+
+    it('should report "no more lines past offset" when offset exceeds buffer', async () => {
+      spyOn(manager, 'get').mockReturnValue({
+        id: 'test-session-id',
+        title: 'Test Session',
+        description: 'A session for testing',
+        command: 'echo',
+        args: [],
+        workdir: '/tmp',
+        status: 'exited',
+        notifyOnExit: false,
+        timeoutSeconds: undefined,
+        timedOut: false,
+        exitCode: 0,
+        pid: 12345,
+        createdAt: new Date().toISOString(),
+        lineCount: 5,
+      })
+      spyOn(manager, 'read').mockReturnValue({
+        lines: [],
+        offset: 10,
+        hasMore: false,
+        totalLines: 5,
+      })
+
+      const ctx = {
+        sessionID: 'parent',
+        messageID: 'msg',
+        agent: 'agent',
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+        directory: '/tmp',
+        worktree: '/tmp',
+      }
+
+      const result = await ptyRead.execute({ id: 'test-session-id', offset: 10 }, ctx)
+
+      expect(result).toContain('No more lines past offset 10')
+      expect(result).toContain('Buffer has 5 total lines')
+    })
   })
 
   describe('ptyList', () => {
