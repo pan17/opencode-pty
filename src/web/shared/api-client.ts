@@ -2,7 +2,7 @@
 // Uses the structured routes to ensure correct methods and parameters
 
 import type { HealthResponse, PTYSessionInfo } from 'opencode-pty/web/shared/types'
-import { routes } from './routes'
+import { routes } from './routes.ts'
 
 // Extract path parameters from route pattern at compile time
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- infer _ is intentional for type pattern matching

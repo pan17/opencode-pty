@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import type { PTYSessionInfo } from 'opencode-pty/web/shared/types'
 
-import { api } from '../../shared/api-client'
+import { api } from '../../shared/api-client.ts'
 
 interface UseSessionManagerOptions {
   activeSession: PTYSessionInfo | null

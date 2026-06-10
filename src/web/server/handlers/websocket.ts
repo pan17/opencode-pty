@@ -1,5 +1,5 @@
-import type { ServerWebSocket } from 'bun'
-import { manager } from '../../../plugin/pty/manager'
+import { inspect } from 'node:util'
+import { manager } from '../../../plugin/pty/manager.ts'
 import {
   type WSMessageServerSessionList,
   type WSMessageClientSubscribeSession,
@@ -14,19 +14,24 @@ import {
   type WSMessageServerSubscribedSession,
   CustomError,
   type WSMessageServerUnsubscribedSession,
-} from '../../shared/types'
+} from '../../shared/types.ts'
+
+// SubscriberWebSocket mirrors the shape used in server.ts. We re-declare the
+// minimal subset we need here so this module stays usable without an import cycle.
+type SubscriberWebSocket = {
+  send(data: string): void
+  subscribe(topic: string): void
+  unsubscribe(topic: string): void
+}
 
 class WebSocketHandler {
-  private sendSessionList(ws: ServerWebSocket<undefined>): void {
+  private sendSessionList(ws: SubscriberWebSocket): void {
     const sessions = manager.list()
     const message: WSMessageServerSessionList = { type: 'session_list', sessions }
     ws.send(JSON.stringify(message))
   }
 
-  private handleSubscribe(
-    ws: ServerWebSocket<undefined>,
-    message: WSMessageClientSubscribeSession
-  ): void {
+  private handleSubscribe(ws: SubscriberWebSocket, message: WSMessageClientSubscribeSession): void {
     const session = manager.get(message.sessionId)
     if (!session) {
       const error: WSMessageServerError = {
@@ -45,7 +50,7 @@ class WebSocketHandler {
   }
 
   private handleUnsubscribe(
-    ws: ServerWebSocket<undefined>,
+    ws: SubscriberWebSocket,
     message: WSMessageClientUnsubscribeSession
   ): void {
     const topic = `session:${message.sessionId}`
@@ -58,13 +63,13 @@ class WebSocketHandler {
   }
 
   private handleSessionListRequest(
-    ws: ServerWebSocket<undefined>,
+    ws: SubscriberWebSocket,
     _message: WSMessageClientSessionList
   ): void {
     this.sendSessionList(ws)
   }
 
-  private handleUnknownMessage(ws: ServerWebSocket<undefined>, message: WSMessageClient): void {
+  private handleUnknownMessage(ws: SubscriberWebSocket, message: WSMessageClient): void {
     const error: WSMessageServerError = {
       type: 'error',
       error: new CustomError(`Unknown message type ${message.type}`),
@@ -72,10 +77,7 @@ class WebSocketHandler {
     ws.send(JSON.stringify(error))
   }
 
-  public handleWebSocketMessage(
-    ws: ServerWebSocket<undefined>,
-    data: string | Buffer<ArrayBuffer>
-  ): void {
+  public handleWebSocketMessage(ws: SubscriberWebSocket, data: string | Buffer): void {
     if (typeof data !== 'string') {
       const error: WSMessageServerError = {
         type: 'error',
@@ -118,13 +120,13 @@ class WebSocketHandler {
     } catch (err) {
       const error: WSMessageServerError = {
         type: 'error',
-        error: new CustomError(Bun.inspect(err)),
+        error: new CustomError(inspect(err)),
       }
       ws.send(JSON.stringify(error))
     }
   }
 
-  private handleSpawn(ws: ServerWebSocket<undefined>, message: WSMessageClientSpawnSession) {
+  private handleSpawn(ws: SubscriberWebSocket, message: WSMessageClientSpawnSession) {
     const sessionInfo = manager.spawn(message)
     if (message.subscribe) {
       this.handleSubscribe(ws, { type: 'subscribe', sessionId: sessionInfo.id })
@@ -135,7 +137,7 @@ class WebSocketHandler {
     manager.write(message.sessionId, message.data)
   }
 
-  private handleReadRaw(ws: ServerWebSocket<undefined>, message: WSMessageClientReadRaw) {
+  private handleReadRaw(ws: SubscriberWebSocket, message: WSMessageClientReadRaw) {
     const rawData = manager.getRawBuffer(message.sessionId)
     if (!rawData) {
       const error: WSMessageServerError = {
@@ -154,10 +156,7 @@ class WebSocketHandler {
   }
 }
 
-export function handleWebSocketMessage(
-  ws: ServerWebSocket<undefined>,
-  data: string | Buffer<ArrayBuffer>
-): void {
+export function handleWebSocketMessage(ws: SubscriberWebSocket, data: string | Buffer): void {
   const handler = new WebSocketHandler()
   handler.handleWebSocketMessage(ws, data)
 }

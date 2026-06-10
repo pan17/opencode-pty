@@ -17,7 +17,7 @@ function buildUrl(template: string, params: Record<string, string | number>): st
 }
 
 // Import route templates from shared constants
-import { routes } from './routes'
+import { routes } from './routes.ts'
 
 export const RouteBuilder = {
   // WebSocket routes

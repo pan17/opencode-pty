@@ -1,22 +1,28 @@
-import type { PTYSessionInfo, PTYStatus, SpawnOptions } from '../../plugin/pty/types'
+import { inspect } from 'node:util'
+import type { PTYSessionInfo, PTYStatus, SpawnOptions } from '../../plugin/pty/types.ts'
+
+// ANSI escape sequence regex (kept in sync with handlers/sessions.ts stripANSI).
+// Used by CustomError.prettyPrintNoColor for stripping colors from inspect output.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ESC is required to match ANSI sequences
+const ANSI_ESCAPE_RE = /\u001b\[[0-9;?]*[a-zA-Z]|\u001b[^[\u001b]?]/g
 
 export type { PTYSessionInfo, PTYStatus, HealthResponse }
 
 export class CustomError extends Error {
-  override name = 'CustomError'
-  prettyPrintColor: string = Bun.inspect(this, { colors: true, depth: 10 })
-  prettyPrintNoColor: string = Bun.stripANSI(this.prettyPrintColor)
+ override name = 'CustomError'
+ prettyPrintColor: string = inspect(this, { colors: true, depth:10 })
+ prettyPrintNoColor: string = this.prettyPrintColor.replace(ANSI_ESCAPE_RE, '')
 
-  toJSON() {
-    const obj: Record<string, unknown> = {}
-    // Include all own properties, including non-enumerable ones like 'message' and 'stack'
-    // prettyPrintColor and prettyPrintNoColor are now included automatically as strings
-    Object.getOwnPropertyNames(this).forEach((key) => {
-      obj[key] = (this as Record<string, unknown>)[key]
-    })
-    return obj
-  }
-}
+ toJSON() {
+ const obj: Record<string, unknown> = {}
+ // Include all own properties, including non-enumerable ones like 'message' and 'stack'
+ // prettyPrintColor and prettyPrintNoColor are now included automatically as strings
+ Object.getOwnPropertyNames(this).forEach((key) => {
+ obj[key] = (this as Record<string, unknown>)[key]
+ })
+ return obj
+ }
+ }
 
 export interface WSMessageClient {
   type: 'subscribe' | 'unsubscribe' | 'session_list' | 'spawn' | 'input' | 'readRaw'

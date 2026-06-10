@@ -1,14 +1,23 @@
 import { manager } from '../../../plugin/pty/manager.ts'
-import type { BunRequest } from 'bun'
+import type { NodeBunRequest } from '../server.ts'
 import { JsonResponse, ErrorResponse } from './responses.ts'
-import type { routes } from '../../shared/routes.ts'
+
+// ANSI escape sequence regex. Matches CSI sequences (`ESC[` ... letter) and
+// the standalone ESC + single-char sequences used by some terminals.
+// Equivalent to Bun.stripANSI for our purposes (color/format stripping).
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ESC is required to match ANSI sequences
+const ANSI_ESCAPE_RE = /\u001b\[[0-9;?]*[a-zA-Z]|\u001b[^[\u001b]?]/g
+
+function stripANSI(s: string): string {
+  return s.replace(ANSI_ESCAPE_RE, '')
+}
 
 export function getSessions() {
   const sessions = manager.list()
   return new JsonResponse(sessions)
 }
 
-export async function createSession(req: Request) {
+export async function createSession(req: NodeBunRequest) {
   let body: {
     command: string
     args?: string[]
@@ -51,7 +60,7 @@ export function clearSessions() {
   return new JsonResponse({ success: true })
 }
 
-export function getSession(req: BunRequest<typeof routes.session.path>) {
+export function getSession(req: NodeBunRequest<{ id: string }>) {
   const session = manager.get(req.params.id)
   if (!session) {
     return new ErrorResponse('Session not found', 404)
@@ -59,9 +68,7 @@ export function getSession(req: BunRequest<typeof routes.session.path>) {
   return new JsonResponse(session)
 }
 
-export async function sendInput(
-  req: BunRequest<typeof routes.session.input.path>
-): Promise<Response> {
+export async function sendInput(req: NodeBunRequest<{ id: string }>): Promise<Response> {
   try {
     const body = (await req.json()) as { data: string }
     if (!body.data || typeof body.data !== 'string') {
@@ -77,7 +84,7 @@ export async function sendInput(
   }
 }
 
-export function cleanupSession(req: BunRequest<typeof routes.session.cleanup.path>) {
+export function cleanupSession(req: NodeBunRequest<{ id: string }>) {
   const success = manager.kill(req.params.id, true)
   if (!success) {
     return new ErrorResponse('Failed to kill session', 400)
@@ -85,7 +92,7 @@ export function cleanupSession(req: BunRequest<typeof routes.session.cleanup.pat
   return new JsonResponse({ success: true })
 }
 
-export function killSession(req: BunRequest<typeof routes.session.path>) {
+export function killSession(req: NodeBunRequest<{ id: string }>) {
   const success = manager.kill(req.params.id)
   if (!success) {
     return new ErrorResponse('Failed to kill session', 400)
@@ -93,7 +100,7 @@ export function killSession(req: BunRequest<typeof routes.session.path>) {
   return new JsonResponse({ success: true })
 }
 
-export function getRawBuffer(req: BunRequest<typeof routes.session.buffer.raw.path>) {
+export function getRawBuffer(req: NodeBunRequest<{ id: string }>) {
   const bufferData = manager.getRawBuffer(req.params.id)
   if (!bufferData) {
     return new ErrorResponse('Session not found', 404)
@@ -102,13 +109,13 @@ export function getRawBuffer(req: BunRequest<typeof routes.session.buffer.raw.pa
   return new JsonResponse(bufferData)
 }
 
-export function getPlainBuffer(req: BunRequest<typeof routes.session.buffer.plain.path>) {
+export function getPlainBuffer(req: NodeBunRequest<{ id: string }>) {
   const bufferData = manager.getRawBuffer(req.params.id)
   if (!bufferData) {
     return new ErrorResponse('Session not found', 404)
   }
 
-  const plainText = Bun.stripANSI(bufferData.raw)
+  const plainText = stripANSI(bufferData.raw)
   return new JsonResponse({
     plain: plainText,
     byteLength: new TextEncoder().encode(plainText).length,
