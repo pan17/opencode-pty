@@ -83,17 +83,12 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
+      # Build validation: ensure the project compiles in the Nix/Devenv
+      # development environment. Quality checks (test, typecheck, lint,
+      # format) already run on windows-latest via the matrix above and
+      # would produce identical results — avoid duplication.
       - name: Build (Devenv shell)
         run: devenv shell -- bun build:prod
-
-      - name: Quality checks (bun test)
-        run: devenv shell -- bun unittest
-      - name: Quality checks (typecheck)
-        run: devenv shell -- bun typecheck
-      - name: Quality checks (lint)
-        run: devenv shell -- bun lint
-      - name: Quality checks (format)
-        run: devenv shell -- bun format
       - name: Install Playwright Browsers (Devenv shell)
         run: devenv shell -- bash -lc 'PLAYWRIGHT_BROWSERS_PATH=0 bunx playwright install --with-deps chromium firefox'
       - name: Quality checks (test:e2e)

@@ -25,6 +25,12 @@
     // Stricter flags for better code quality
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Self-referencing imports (opencode-pty/*) resolve to src/
+    "paths": {
+      "opencode-pty/*": ["./src/*"]
+    },
+    "baseUrl": "."
   }
 }

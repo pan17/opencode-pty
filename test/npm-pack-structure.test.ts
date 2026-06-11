@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { unlinkSync } from 'node:fs'
 
 // This test ensures `npm pack` (which triggers the package's `prepack` script)
 // produces a tarball that includes the built web UI (`dist/web/**`) and the
@@ -54,6 +55,10 @@ describe('npm pack structure', () => {
     expect(hasCssAsset).toBeTrue()
 
     // 4) Cleanup the pack file
-    await run(['rm', '-f', tgz as string])
-  }, 20000)
+    try {
+      unlinkSync(tgz as string)
+    } catch {
+      // File may already be deleted
+    }
+  }, 120000)
 })

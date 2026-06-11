@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { initManager, manager } from 'opencode-pty/plugin/pty/manager'
 import { PTYServer } from 'opencode-pty/web/server/server'
 import { OpencodeClient } from '@opencode-ai/sdk'
@@ -20,7 +22,10 @@ if (process.env.NODE_ENV === 'test') {
   if (!server.server.port) {
     throw new Error('Unix sockets not supported. File an issue if you need this feature.')
   }
-  await Bun.write(`/tmp/test-server-port-${workerIndex}.txt`, server.server.port.toString())
+  await Bun.write(
+    join(tmpdir(), `test-server-port-${workerIndex}.txt`),
+    server.server.port.toString()
+  )
 }
 
 const api = createApiClient(server.server.url.origin)
@@ -50,20 +55,30 @@ if (process.env.NODE_ENV === 'test') {
 
 // Create test sessions for manual testing and e2e tests
 if (process.env.NODE_ENV === 'test') {
-  // Create an interactive bash session for e2e tests
+  const shellCmd = process.platform === 'win32' ? 'cmd.exe' : 'bash'
+  const shellArgs = process.platform === 'win32' ? [] : ['-i']
+  // Create an interactive shell session for e2e tests
   manager.spawn({
-    command: 'bash',
-    args: ['-i'], // Interactive bash
-    description: 'Interactive bash session for e2e tests',
+    command: shellCmd,
+    args: shellArgs,
+    description: 'Interactive shell session for e2e tests',
     parentSessionId: 'test-session',
   })
 } else if (process.env.CI !== 'true') {
+  const shellCmd = process.platform === 'win32' ? 'cmd.exe' : 'bash'
+  const shellArgs =
+    process.platform === 'win32'
+      ? [
+          '/c',
+          'echo Welcome to live streaming test & echo Type commands and see real-time output & for /l %i in (1,1,100) do echo %date% %time%: Live update %i...',
+        ]
+      : [
+          '-c',
+          "echo 'Welcome to live streaming test'; echo 'Type commands and see real-time output'; for i in {1..100}; do echo \"$(date): Live update $i...\"; sleep 1; done",
+        ]
   manager.spawn({
-    command: 'bash',
-    args: [
-      '-c',
-      "echo 'Welcome to live streaming test'; echo 'Type commands and see real-time output'; for i in {1..100}; do echo \"$(date): Live update $i...\"; sleep 1; done",
-    ],
+    command: shellCmd,
+    args: shellArgs,
     description: 'Live streaming test session',
     parentSessionId: 'live-test',
   })

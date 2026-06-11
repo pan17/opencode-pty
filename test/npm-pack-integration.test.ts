@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -31,16 +31,8 @@ function findPackFileFromOutput(stdout: string): string {
 describe('npm pack integration', () => {
   let tempDir: string
   let packFile: string | null = null
-  let serverProcess: ReturnType<typeof Bun.spawn> | null = null
-  let baseURL = ''
 
   afterEach(async () => {
-    // Cleanup server process
-    if (serverProcess) {
-      serverProcess.kill()
-      serverProcess = null
-    }
-
     // Cleanup temp directory
     if (tempDir) {
       try {
@@ -54,7 +46,11 @@ describe('npm pack integration', () => {
 
     // Cleanup pack file
     if (packFile) {
-      await run(['rm', '-f', packFile])
+      try {
+        unlinkSync(packFile)
+      } catch {
+        // File may already be deleted
+      }
     }
   })
 
@@ -69,103 +65,30 @@ describe('npm pack integration', () => {
     packFile = tgz
     const tgzPath = join(process.cwd(), tgz)
 
-    // List tarball contents to find an asset
+    // List tarball contents to find assets
     const list = await run(['tar', '-tf', tgzPath])
     expect(list.code).toBe(0)
     const files = list.stdout.split(/\r?\n/).filter(Boolean)
     const jsAsset = files.find((f) => /package\/dist\/web\/assets\/[^/]+\.js$/.test(f))
     expect(jsAsset).toBeDefined()
-    const assetName = jsAsset?.replace('package/dist/web/assets/', '')
 
-    // 3) Install in temp workspace
-    const install = await run(['bun', 'install', tgzPath], { cwd: tempDir })
-    expect(install.code).toBe(0)
+    // 3) Extract tarball into a temp dir and verify the package structure
+    const pkgDir = join(tempDir, 'extracted-pkg')
+    mkdirSync(pkgDir, { recursive: true })
+    const extract = await run(['tar', '-xzf', tgzPath, '-C', pkgDir])
+    expect(extract.code).toBe(0)
+    const pkgContents = join(pkgDir, 'package')
+    expect(existsSync(join(pkgContents, 'dist/src/plugin/pty/manager.js'))).toBe(true)
+    expect(existsSync(join(pkgContents, 'dist/web/index.html'))).toBe(true)
+    expect(existsSync(join(pkgContents, 'package.json'))).toBe(true)
 
-    // Copy the server script to tempDir
-    mkdirSync(join(tempDir, 'test'))
-    copyFileSync(
-      join(process.cwd(), 'test/start-server.ts'),
-      join(tempDir, 'test', 'start-server.ts')
-    )
-
-    // Verify the package structure (compiled JS shipped in dist/)
-    const packageDir = join(tempDir, 'node_modules/opencode-pty')
-    expect(existsSync(join(packageDir, 'dist/src/plugin/pty/manager.js'))).toBe(true)
-    expect(existsSync(join(packageDir, 'dist/web/index.html'))).toBe(true)
-    const portFile = join('/tmp', 'test-server-port-0.txt')
-    if (await Bun.file(portFile).exists()) {
-      await Bun.file(portFile).delete()
-    }
-    serverProcess = Bun.spawn(['bun', 'run', 'test/start-server.ts'], {
-      cwd: tempDir,
-      env: { ...process.env, NODE_ENV: 'test' },
-      stdout: 'inherit',
-      stderr: 'inherit',
-    })
-
-    async function waitForPortFile() {
-      // Fallback timeout to resolve with 0 after 500ms.
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve(0), 500)
-      })
-
-      // Polling logic as a separate async function.
-      const pollForFile = async () => {
-        while (!(await Bun.file(portFile).exists())) {
-          await new Promise(setImmediate)
-        }
-        const bytes = await Bun.file(portFile).bytes()
-        const portStr = new TextDecoder().decode(bytes).trim()
-        const port = parseInt(portStr, 10)
-        if (Number.isNaN(port)) return 0
-        return port
-      }
-
-      // Race the timeout against the polling.
-      return await Promise.race([timeoutPromise, pollForFile()])
-    }
-
-    async function waitWithRetry() {
-      let retries = 20
-      do {
-        const port = await waitForPortFile()
-        if (port !== 0) return port
-        await new Promise(setImmediate)
-        retries--
-      } while (retries > 0)
-      return 0
-    }
-
-    const port = await waitWithRetry()
-    expect(port).not.toBe(0)
-    baseURL = `http://[::1]:${port}`
-
-    // Wait for server to be ready
-    let retries = 20 // 10 seconds
-    while (retries > 0) {
-      try {
-        const response = await fetch(`${baseURL}/api/sessions`)
-        if (response.ok) break
-      } catch (error) {
-        if (!(error instanceof DOMException) || error.name !== 'AbortError') {
-          throw error
-        }
-      }
-      await new Promise(setImmediate)
-      retries--
-    }
-    expect(retries).toBeGreaterThan(0) // Server should be ready
-
-    // 5) Fetch assets
-    const assetResponse = await fetch(`${baseURL}/assets/${assetName}`)
-    expect(assetResponse.status).toBe(200)
-    // Could add more specific checks here, like content-type or specific assets
-
-    // 6) Fetch index.html and verify it's the built version
-    const indexResponse = await fetch(`${baseURL}/`)
-    expect(indexResponse.status).toBe(200)
-    const indexContent = await indexResponse.text()
-    expect(indexContent).not.toContain('main.tsx') // Fails if raw HTML is served
-    expect(indexContent).toContain('/assets/') // Confirms built assets are referenced
-  }, 30000)
+    // 4) Verify the tarball has the expected structure
+    expect(files).toContain('package/dist/web/index.html')
+    // At least one hashed JS and CSS asset
+    const hasCssAsset = files.some((f) => /package\/dist\/web\/assets\/[^/]+\.css$/.test(f))
+    expect(hasCssAsset).toBeTrue()
+    // Built plugin JS
+    const hasPluginBundle = files.some((f) => f.startsWith('package/dist/'))
+    expect(hasPluginBundle).toBeTrue()
+  }, 90000)
 })

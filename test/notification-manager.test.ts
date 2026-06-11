@@ -47,6 +47,7 @@ describe('NotificationManager', () => {
     await manager.sendExitNotification(createSession({ parentAgent: 'agent-two' }), 0)
 
     expect(promptAsync).toHaveBeenCalledTimes(1)
+    // biome-ignore lint/style/noNonNullAssertion: verified by toHaveBeenCalledTimes(1)
     const payload = promptAsync.mock.calls[0]![0]
 
     expect(payload.path).toEqual({ id: 'parent-session-id' })
@@ -65,6 +66,7 @@ describe('NotificationManager', () => {
     await manager.sendExitNotification(createSession({ parentAgent: undefined }), 1)
 
     expect(promptAsync).toHaveBeenCalledTimes(1)
+    // biome-ignore lint/style/noNonNullAssertion: verified by toHaveBeenCalledTimes(1)
     const payload = promptAsync.mock.calls[0]![0]
 
     expect(payload.path).toEqual({ id: 'parent-session-id' })
@@ -85,6 +87,7 @@ describe('NotificationManager', () => {
     await manager.sendExitNotification(createSession({ timeoutSeconds: 2, timedOut: true }), 0)
 
     expect(promptAsync).toHaveBeenCalledTimes(1)
+    // biome-ignore lint/style/noNonNullAssertion: verified by toHaveBeenCalledTimes(1)
     const payload = promptAsync.mock.calls[0]![0]
     const text = payload.body.parts[0]?.text ?? ''
 

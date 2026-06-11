@@ -44,6 +44,7 @@ type SubscriberWebSocket = WebSocket & {
 // API expectations.
 export interface ServerInterface {
   url: URL
+  port: number
   publish(topic: string, data: string): void
   pendingWebSockets: number
 }
@@ -93,6 +94,7 @@ export class PTYServer implements Disposable {
 
     const serverInterface: ServerInterface = {
       url: undefined as unknown as URL,
+      port: 0,
       publish: (topic, data) => {
         this.publish(topic, data)
       },
@@ -102,6 +104,14 @@ export class PTYServer implements Disposable {
       get: () => {
         if (!this._url) throw new Error('Server has not finished starting yet')
         return this._url
+      },
+      enumerable: true,
+    })
+    Object.defineProperty(serverInterface, 'port', {
+      get: () => {
+        const addr = this.httpServer.address()
+        if (!addr || typeof addr === 'string') return 0
+        return addr.port
       },
       enumerable: true,
     })
