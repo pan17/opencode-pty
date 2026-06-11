@@ -10,6 +10,10 @@ interface TerminalInstance {
   _onData: { fire(data: unknown): boolean }
   _forwardEvents(): void
   _socket?: NodeJS.WritableStream & NodeJS.EventEmitter
+  _agent?: {
+    inSocket: NodeJS.WritableStream & NodeJS.EventEmitter
+    outSocket: NodeJS.WritableStream & NodeJS.EventEmitter
+  }
 }
 
 interface TerminalConstructor {
@@ -88,8 +92,18 @@ export function installMonoPatch(): void {
     // net.Socket when write() is called after the conpty session has ended.
     // Without this listener Bun/Node treats the async error event as an
     // unhandled exception that cannot be caught by try-catch in OutputManager.
-    if (typeof this._socket?.once === 'function') {
-      this._socket.on('error', () => {
+    //
+    // On Windows, writing goes through _agent.inSocket (the input pipe),
+    // while _socket is the output/read pipe — suppress errors on BOTH.
+    const sockets = []
+    if (this._socket && typeof this._socket.on === 'function') {
+      sockets.push(this._socket)
+    }
+    if (this._agent?.inSocket && typeof this._agent.inSocket.on === 'function') {
+      sockets.push(this._agent.inSocket)
+    }
+    for (const sock of sockets) {
+      sock.on('error', () => {
         // swallow — socket was closed before write completed
       })
     }
