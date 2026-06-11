@@ -10,12 +10,12 @@ const toolsDir = join(here, '..', 'src', 'plugin', 'pty', 'tools')
 const files = ['spawn', 'write', 'read', 'list', 'kill']
 
 for (const name of files) {
- const txtPath = join(toolsDir, `${name}.txt`)
- const tsPath = join(toolsDir, `${name}-description.ts`)
- const content = readFileSync(txtPath, 'utf8')
- // Escape backticks and ${ for safe embedding in a template literal
- const escaped = content.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
- const exportStmt = `export const ${name.toUpperCase()}_DESCRIPTION = \`${escaped}\`\n`
- writeFileSync(tsPath, exportStmt, 'utf8')
- console.log(`Wrote ${tsPath}`)
+  const txtPath = join(toolsDir, `${name}.txt`)
+  const tsPath = join(toolsDir, `${name}-description.ts`)
+  const content = readFileSync(txtPath, 'utf8')
+  // Escape backticks and ${ for safe embedding in a template literal
+  const escaped = content.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
+  const exportStmt = `export const ${name.toUpperCase()}_DESCRIPTION = \`${escaped}\`\n`
+  writeFileSync(tsPath, exportStmt, 'utf8')
+  console.log(`Wrote ${tsPath}`)
 }

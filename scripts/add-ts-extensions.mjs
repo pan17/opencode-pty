@@ -13,27 +13,27 @@ const root = join(here, '..', 'src')
 const importRe = /(from\s+['"])(\.\.?\/[^'"]+?)(['"])/g
 
 function* walk(dir) {
- for (const e of readdirSync(dir)) {
- const p = join(dir, e)
- if (statSync(p).isDirectory()) yield* walk(p)
- else if (extname(p) === '.ts') yield p
- }
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e)
+    if (statSync(p).isDirectory()) yield* walk(p)
+    else if (extname(p) === '.ts') yield p
+  }
 }
 
-let touched =0
+let touched = 0
 for (const file of walk(root)) {
- const orig = readFileSync(file, 'utf8')
- const updated = orig.replace(importRe, (m, pre, rel, post) => {
- // Don't touch already-extended or non-relative
- if (rel.endsWith('.ts') || rel.endsWith('.js')) return m
- if (rel.endsWith('.json')) return m
- // Only handle relative imports starting with ./
- return `${pre}${rel}.ts${post}`
- })
- if (updated !== orig) {
- writeFileSync(file, updated, 'utf8')
- touched++
- console.log(`Updated: ${file}`)
- }
+  const orig = readFileSync(file, 'utf8')
+  const updated = orig.replace(importRe, (m, pre, rel, post) => {
+    // Don't touch already-extended or non-relative
+    if (rel.endsWith('.ts') || rel.endsWith('.js')) return m
+    if (rel.endsWith('.json')) return m
+    // Only handle relative imports starting with ./
+    return `${pre}${rel}.ts${post}`
+  })
+  if (updated !== orig) {
+    writeFileSync(file, updated, 'utf8')
+    touched++
+    console.log(`Updated: ${file}`)
+  }
 }
 console.log(`Done. ${touched} file(s) updated.`)
