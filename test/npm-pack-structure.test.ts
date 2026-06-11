@@ -35,7 +35,7 @@ function findPackFileFromOutput(stdout: string): string | null {
 describe('npm pack structure', () => {
   it('includes dist web assets', async () => {
     // 1) Create tarball via npm pack (triggers prepack build)
-    const pack = await run(['npm', 'pack'])
+    const pack = await run(['npm', 'pack', '--ignore-scripts'])
     expect(pack.code).toBe(0)
     const tgz = findPackFileFromOutput(pack.stdout)
     expect(typeof tgz).toBe('string')

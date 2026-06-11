@@ -59,7 +59,7 @@ describe('npm pack integration', () => {
     tempDir = mkdtempSync(join(tmpdir(), 'opencode-pty-'))
 
     // 2) Pack the package
-    const pack = await run(['npm', 'pack'])
+    const pack = await run(['npm', 'pack', '--ignore-scripts'])
     expect(pack.code).toBe(0)
     const tgz = findPackFileFromOutput(pack.stdout)
     packFile = tgz

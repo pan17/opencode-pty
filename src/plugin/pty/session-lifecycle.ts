@@ -11,6 +11,7 @@ installMonoPatch()
 interface PtyWithBuffer {
   _onData: { fire(data: unknown): boolean }
   _forwardEvents(): void
+  _socket?: NodeJS.WritableStream & NodeJS.EventEmitter
 }
 
 function generateId(): string {

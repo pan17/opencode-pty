@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 interface TerminalInstance {
   _onData: { fire(data: unknown): boolean }
   _forwardEvents(): void
+  _socket?: NodeJS.WritableStream & NodeJS.EventEmitter
 }
 
 interface TerminalConstructor {
@@ -81,6 +82,16 @@ export function installMonoPatch(): void {
         buffer.push(new TextDecoder('utf-8').decode(data))
       }
       return originalFire(data)
+    }
+
+    // Suppress "Socket is closed" / ERR_SOCKET_CLOSED from the underlying
+    // net.Socket when write() is called after the conpty session has ended.
+    // Without this listener Bun/Node treats the async error event as an
+    // unhandled exception that cannot be caught by try-catch in OutputManager.
+    if (typeof this._socket?.once === 'function') {
+      this._socket.on('error', () => {
+        // swallow — socket was closed before write completed
+      })
     }
 
     originalForward.call(this)
