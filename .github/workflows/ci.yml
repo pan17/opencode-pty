@@ -17,7 +17,14 @@ jobs:
       fail-fast: false
       matrix:
         quality: [test, typecheck, lint, format, test:e2e]
-    runs-on: ubuntu-24.04
+    # All `test/` integration tests use `portableNode()` (see
+    # test/utils.ts) so the same PTY commands run identically on
+    # Windows and POSIX. CI runs on Windows because the matrix tests
+    # exercise PTY-spawning helpers whose semantics differ across
+    # platforms (conpty vs. unix PTY allocation, CreateProcessW
+    # PATHEXT behaviour, etc.) — running the tests where the plugin
+    # is actually shipped (Windows + Node ESM) keeps CI honest.
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6

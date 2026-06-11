@@ -22,22 +22,6 @@ import type {
   WSMessageClientUnsubscribeSession,
 } from '../src/web/shared/types'
 
-/**
- * Returns a portable `node` / `node.exe` command for the current platform.
- * Use this for every PTY-spawned test command so the same test code runs
- * on both local Windows and CI (which also runs on Windows — see
- * `.github/workflows/ci.yml`).
- *
- * `@lydell/node-pty`'s Terminal constructor calls CreateProcessW with
- * the literal command name (no PATHEXT resolution). On Windows the
- * binary must end in `.exe`, hence `node.exe` here. On any other
- * platform we fall back to bare `node`.
- *
- * The script is appended via `-e` so the child stays alive long enough
- * for the consumer's `onData` listener to register before the process
- * exits. The trailing `setInterval(() => {}, …)` is what makes the
- * process linger.
- */
 export function portableNode(script = ''): { command: string; args: string[] } {
   return {
     command: process.platform === 'win32' ? 'node.exe' : 'node',
@@ -45,21 +29,11 @@ export function portableNode(script = ''): { command: string; args: string[] } {
   }
 }
 
-/**
- * Standard "echo a line, then stay alive for a few seconds" script.
- * Used by tests that need to verify a short burst of PTY output without
- * the process exiting before the consumer subscribes.
- */
 export const KEEP_ALIVE_ECHO_SCRIPT =
   'process.stdout.write("Hello World\\n"); setInterval(() => {}, 5000)'
 
-/**
- * "Stdin → stdout" REPL script — writes every stdin chunk back to stdout
- * and stays alive. Used as a Windows-friendly replacement for `cat` /
- * interactive `bash` (which don't exist on Windows without WSL/Git Bash).
- */
-export const STDIN_ECHO_KEEP_ALIVE_SCRIPT =
-  'process.stdin.on("data", d => process.stdout.write(d)); setInterval(() => {}, 5000)'
+export const SELF_EXITING_ECHO_SCRIPT =
+  'process.stdout.write("Hello World\\n"); setTimeout(() => process.exit(0), 500)'
 
 export class ManagedTestClient implements Disposable {
   public readonly ws: WebSocket
@@ -131,14 +105,6 @@ export class ManagedTestClient implements Disposable {
     this.ws.close()
     this.stack.dispose()
   }
-  /**
-   * Waits until the WebSocket connection is open.
-   *
-   * The onopen event is broken so we need to wait manually.
-   * Problem: if onopen is set after the WebSocket is opened,
-   * it will never be called. So we wait here until the readyState is OPEN.
-   * This prevents flakiness.
-   */
   public async waitOpen() {
     while (this.ws.readyState !== WebSocket.OPEN) {
       await new Promise(setImmediate)
@@ -150,9 +116,6 @@ export class ManagedTestClient implements Disposable {
     return client
   }
 
-  /**
-   * Verify that a specific character appears in raw_data events within timeout
-   */
   async verifyCharacterInEvents(
     sessionId: string,
     chars: string,
@@ -194,7 +157,6 @@ export class ManagedTestServer implements Disposable {
 
   public static async create() {
     const server = await PTYServer.createServer()
-
     return new ManagedTestServer(server)
   }
 

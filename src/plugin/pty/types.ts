@@ -54,6 +54,16 @@ export interface SpawnOptions {
   parentAgent?: string
   notifyOnExit?: boolean
   timeoutSeconds?: number
+  /**
+   * Called inside `SessionLifecycleManager.spawn()` AFTER `spawnProcess`
+   * has created the PTY and the session has been added to the sessions
+   * map, but BEFORE the replay-buffer drain and the consumer `onData`
+   * registration. The web-server uses this to subscribe a WebSocket
+   * client to the session topic before any data can be emitted, so
+   * the subscription is in place when the first raw_data / session_update
+   * message is published.
+   */
+  onSessionInit?(session: PTYSession): void
 }
 
 export interface ReadResult {

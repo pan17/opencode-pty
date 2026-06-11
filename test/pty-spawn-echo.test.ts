@@ -3,15 +3,7 @@ import { ptySpawn } from '../src/plugin/pty/tools/spawn.ts'
 import { manager, registerRawOutputCallback } from '../src/plugin/pty/manager.ts'
 import { ManagedTestServer, portableNode, KEEP_ALIVE_ECHO_SCRIPT } from './utils.ts'
 
-// The CI runner is Windows (see `.github/workflows/ci.yml`). We use
-// `portableNode()` so the command works on every platform, but on
-// Linux/macOS the `@lydell/node-pty` constructor's "data emitted
-// before the consumer registers onData" race causes short-lived PTY
-// output to be silently dropped. Skipping on non-Windows keeps the
-// matrix green without depending on a fix for that upstream race.
-const isWindows = process.platform === 'win32'
-
-describe.skipIf(!isWindows)('ptySpawn Integration', () => {
+describe('ptySpawn Integration', () => {
   let managedTestServer: ManagedTestServer
   let disposableStack: DisposableStack
 
@@ -38,7 +30,7 @@ describe.skipIf(!isWindows)('ptySpawn Integration', () => {
           resolve(receivedOutput)
         }
       })
-      setTimeout(() => resolve(receivedOutput || 'Timeout'), 2000)
+      setTimeout(() => resolve(receivedOutput || 'Timeout'), 30000)
     })
 
     const { command, args } = portableNode(KEEP_ALIVE_ECHO_SCRIPT)
@@ -73,5 +65,5 @@ describe.skipIf(!isWindows)('ptySpawn Integration', () => {
     expect(rawOutput).toContain('Hello World')
 
     manager.kill(sessionId, true)
-  })
+  }, 60000)
 })

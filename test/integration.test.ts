@@ -5,15 +5,7 @@ import { PTYServer } from '../src/web/server/server.ts'
 import type { WSMessageServerSessionUpdate } from '../src/web/shared/types.ts'
 import type { PTYSessionInfo } from '../src/plugin/pty/types.ts'
 
-// The CI runner is Windows (see `.github/workflows/ci.yml`). We use
-// `portableNode()` so commands work on every platform, but on
-// Linux/macOS the `@lydell/node-pty` constructor's "data emitted
-// before the consumer registers onData" race causes short-lived PTY
-// output to be silently dropped. Skipping on non-Windows keeps the
-// matrix green without depending on a fix for that upstream race.
-const isWindows = process.platform === 'win32'
-
-describe.skipIf(!isWindows)('Web Server Integration', () => {
+describe('Web Server Integration', () => {
   let managedTestServer: ManagedTestServer
   let disposableStack: DisposableStack
   beforeAll(async () => {
@@ -59,18 +51,18 @@ describe.skipIf(!isWindows)('Web Server Integration', () => {
       // strings doesn't fire. Both append a keep-alive interval so
       // the consumer's `onData` listener has time to register before
       // the process exits.
-      const { command: command1 } = portableNode(
-        'process.stdout.write("Session 1\\n"); setInterval(() => {}, 5000)'
+      const { command: command1, args: args1 } = portableNode(
+        'process.stdout.write("Session 1\\n"); setTimeout(() => process.exit(0), 500)'
       )
-      const { command: command2 } = portableNode(
-        'process.stdout.write("Session 2\\n"); setInterval(() => {}, 5000)'
+      const { command: command2, args: args2 } = portableNode(
+        'process.stdout.write("Session 2\\n"); setTimeout(() => process.exit(0), 500)'
       )
 
       managedTestClient1.send({
         type: 'spawn',
         title: title1,
         command: command1,
-        args: ['1'],
+        args: args1,
         description: 'Multi-session test 1',
         parentSessionId: managedTestServer.sessionId,
         subscribe: true,
@@ -80,7 +72,7 @@ describe.skipIf(!isWindows)('Web Server Integration', () => {
         type: 'spawn',
         title: title2,
         command: command2,
-        args: ['2'],
+        args: args2,
         description: 'Multi-session test 2',
         parentSessionId: managedTestServer.sessionId,
         subscribe: true,
@@ -116,7 +108,7 @@ describe.skipIf(!isWindows)('Web Server Integration', () => {
       })
 
       const { command, args } = portableNode(
-        'process.stdout.write("test\\n"); setInterval(() => {}, 5000)'
+        'process.stdout.write("test\\n"); setTimeout(() => process.exit(0), 500)'
       )
 
       const session = manager.spawn({

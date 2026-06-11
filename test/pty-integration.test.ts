@@ -3,20 +3,12 @@ import {
   ManagedTestClient,
   ManagedTestServer,
   portableNode,
-  KEEP_ALIVE_ECHO_SCRIPT,
+  SELF_EXITING_ECHO_SCRIPT,
 } from './utils.ts'
 import type { WSMessageServerSessionUpdate } from '../src/web/shared/types.ts'
 import type { PTYSessionInfo } from '../src/plugin/pty/types.ts'
 
-// The CI runner is Windows (see `.github/workflows/ci.yml`). We use
-// `portableNode()` so commands work on every platform, but on
-// Linux/macOS the `@lydell/node-pty` constructor's "data emitted
-// before the consumer registers onData" race causes short-lived PTY
-// output to be silently dropped. Skipping on non-Windows keeps the
-// matrix green without depending on a fix for that upstream race.
-const isWindows = process.platform === 'win32'
-
-describe.skipIf(!isWindows)('PTY Manager Integration', () => {
+describe('PTY Manager Integration', () => {
   let managedTestServer: ManagedTestServer
   let disposableStack: DisposableStack
 
@@ -99,10 +91,10 @@ describe.skipIf(!isWindows)('PTY Manager Integration', () => {
       // strings doesn't fire. Both append a keep-alive interval so
       // the consumer's `onData` listener has time to register before
       // the process exits.
-      const { command: command1 } = portableNode(
+      const { command: command1, args: args1 } = portableNode(
         'process.stdout.write("output from session 1\\n"); setInterval(() => {}, 5000)'
       )
-      const { command: command2 } = portableNode(
+      const { command: command2, args: args2 } = portableNode(
         'process.stdout.write("output from session 2\\n"); setInterval(() => {}, 5000)'
       )
 
@@ -110,7 +102,7 @@ describe.skipIf(!isWindows)('PTY Manager Integration', () => {
         type: 'spawn',
         title: title1,
         command: command1,
-        args: ['1'],
+        args: args1,
         description: 'Session 1',
         parentSessionId: managedTestServer.sessionId,
         subscribe: true,
@@ -120,7 +112,7 @@ describe.skipIf(!isWindows)('PTY Manager Integration', () => {
         type: 'spawn',
         title: title2,
         command: command2,
-        args: ['2'],
+        args: args2,
         description: 'Session 2',
         parentSessionId: managedTestServer.sessionId,
         subscribe: true,
@@ -157,7 +149,7 @@ describe.skipIf(!isWindows)('PTY Manager Integration', () => {
         outputTotal += message.rawData
       })
 
-      const { command, args } = portableNode(KEEP_ALIVE_ECHO_SCRIPT)
+      const { command, args } = portableNode(SELF_EXITING_ECHO_SCRIPT)
       managedTestClient.send({
         type: 'spawn',
         title,
@@ -201,7 +193,7 @@ describe.skipIf(!isWindows)('PTY Manager Integration', () => {
       })
 
       const { command, args } = portableNode(
-        'process.stdout.write("lifecycle test\\n"); setInterval(() => {}, 5000)'
+        'process.stdout.write("lifecycle test\\n"); setTimeout(() => process.exit(0), 500)'
       )
       managedTestClient.send({
         type: 'spawn',

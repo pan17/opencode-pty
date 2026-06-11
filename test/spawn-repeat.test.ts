@@ -9,17 +9,7 @@ import {
 import { portableNode, KEEP_ALIVE_ECHO_SCRIPT } from './utils.ts'
 import type { Subprocess } from 'bun'
 
-// The CI runner is Windows (see `.github/workflows/ci.yml`). The
-// `Bun.spawn` call below needs `bun` on PATH, which the CI workflow
-// installs via `oven-sh/setup-bun`. We use `portableNode()` so the
-// inner `pty_spawn` works on every platform, but on Linux/macOS the
-// `@lydell/node-pty` constructor's "data emitted before the consumer
-// registers onData" race causes short-lived PTY output to be silently
-// dropped. Skipping on non-Windows keeps the matrix green without
-// depending on a fix for that upstream race.
-const isWindows = process.platform === 'win32'
-
-describe.skipIf(!isWindows)('PTY Echo Behavior', () => {
+describe('PTY Echo Behavior', () => {
   beforeEach(() => {
     initManager(new OpencodeClient())
   })

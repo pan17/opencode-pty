@@ -152,10 +152,16 @@ class WebSocketHandler {
   }
 
   private handleSpawn(ws: SubscriberWebSocket, message: WSMessageClientSpawnSession) {
-    const sessionInfo = manager.spawn(message)
+    // If the client asked to be subscribed, hook into the session
+    // init so the WS subscribes BEFORE the replay-buffer drain emits
+    // data — otherwise the first chunk(s) hit a topic with zero
+    // subscribers and the client gets nothing.
     if (message.subscribe) {
-      this.handleSubscribe(ws, { type: 'subscribe', sessionId: sessionInfo.id })
+      message.onSessionInit = (session) => {
+        this.handleSubscribe(ws, { type: 'subscribe', sessionId: session.id })
+      }
     }
+    manager.spawn(message)
   }
 
   private handleInput(message: WSMessageClientInput) {

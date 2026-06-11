@@ -1,9 +1,17 @@
-import { spawn, type IPty } from '@lydell/node-pty'
+import { spawn } from '@lydell/node-pty'
 import { RingBuffer } from './buffer.ts'
 import type { PTYSession, PTYSessionInfo, SpawnOptions } from './types.ts'
 import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../constants.ts'
+import { drainReplayBuffer, installMonoPatch } from './pty-mono-patch.ts'
 
 const SESSION_ID_BYTE_LENGTH = 4
+
+installMonoPatch()
+
+interface PtyWithBuffer {
+  _onData: { fire(data: unknown): boolean }
+  _forwardEvents(): void
+}
 
 function generateId(): string {
   const hex = Array.from(crypto.getRandomValues(new Uint8Array(SESSION_ID_BYTE_LENGTH)))
@@ -99,7 +107,7 @@ export class SessionLifecycleManager {
 
   private spawnProcess(session: PTYSession): void {
     const env = { ...process.env, ...session.env } as Record<string, string>
-    const ptyProcess: IPty = spawn(session.command, session.args, {
+    const ptyProcess = spawn(session.command, session.args, {
       name: 'xterm-256color',
       cols: DEFAULT_TERMINAL_COLS,
       rows: DEFAULT_TERMINAL_ROWS,
@@ -144,8 +152,18 @@ export class SessionLifecycleManager {
   ): PTYSessionInfo {
     const session = this.createSessionObject(opts)
     this.spawnProcess(session)
-    this.setupEventHandlers(session, onData, onExit)
+
     this.sessions.set(session.id, session)
+    opts.onSessionInit?.(session)
+
+    const ptyWithBuffer = session.process as unknown as PtyWithBuffer
+    const buffered = drainReplayBuffer(ptyWithBuffer)
+    for (const data of buffered) {
+      session.buffer.append(data)
+      onData(session, data)
+    }
+
+    this.setupEventHandlers(session, onData, onExit)
     this.scheduleSessionTimeout(session)
     return this.toInfo(session)
   }
