@@ -77,17 +77,42 @@ class WebSocketHandler {
     ws.send(JSON.stringify(error))
   }
 
-  public handleWebSocketMessage(ws: SubscriberWebSocket, data: string | Buffer): void {
-    if (typeof data !== 'string') {
+  public handleWebSocketMessage(
+    ws: SubscriberWebSocket,
+    data: string | Buffer | ArrayBuffer | Buffer[]
+  ): void {
+    // The `ws` library delivers message payloads as `Buffer` by default
+    // (the type signature on `WebSocket.on('message', …)` is
+    // `(data: RawData, isBinary: boolean) => void` where `RawData` is
+    // `Buffer | ArrayBuffer | Buffer[]`). The Node ESM port was
+    // previously casting every frame to `string` before reaching this
+    // handler — which works on Bun/Linux but produces a `Buffer` on
+    // Bun/Windows (different `WebSocket` implementation), making
+    // `typeof data !== 'string'` true and silently replying with
+    // "Binary messages are not supported yet" instead of the real
+    // handler. Decode UTF-8 here so the rest of the handler can treat
+    // `dataStr` uniformly.
+    let dataStr: string
+    if (typeof data === 'string') {
+      dataStr = data
+    } else if (Buffer.isBuffer(data)) {
+      dataStr = data.toString('utf8')
+    } else if (Array.isArray(data)) {
+      // ws may also deliver concatenated Buffer chunks; concat to a
+      // single Buffer first, then decode.
+      dataStr = Buffer.concat(data).toString('utf8')
+    } else if (data instanceof ArrayBuffer) {
+      dataStr = Buffer.from(data).toString('utf8')
+    } else {
       const error: WSMessageServerError = {
         type: 'error',
-        error: new CustomError('Binary messages are not supported yet. File an issue.'),
+        error: new CustomError('Unsupported WebSocket payload type.'),
       }
       ws.send(JSON.stringify(error))
       return
     }
     try {
-      const message: WSMessageClient = JSON.parse(data)
+      const message: WSMessageClient = JSON.parse(dataStr)
 
       switch (message.type) {
         case 'subscribe':
@@ -156,7 +181,10 @@ class WebSocketHandler {
   }
 }
 
-export function handleWebSocketMessage(ws: SubscriberWebSocket, data: string | Buffer): void {
+export function handleWebSocketMessage(
+  ws: SubscriberWebSocket,
+  data: string | Buffer | ArrayBuffer | Buffer[]
+): void {
   const handler = new WebSocketHandler()
   handler.handleWebSocketMessage(ws, data)
 }

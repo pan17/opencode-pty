@@ -22,6 +22,45 @@ import type {
   WSMessageClientUnsubscribeSession,
 } from '../src/web/shared/types'
 
+/**
+ * Returns a portable `node` / `node.exe` command for the current platform.
+ * Use this for every PTY-spawned test command so the same test code runs
+ * on both local Windows and CI (which also runs on Windows — see
+ * `.github/workflows/ci.yml`).
+ *
+ * `@lydell/node-pty`'s Terminal constructor calls CreateProcessW with
+ * the literal command name (no PATHEXT resolution). On Windows the
+ * binary must end in `.exe`, hence `node.exe` here. On any other
+ * platform we fall back to bare `node`.
+ *
+ * The script is appended via `-e` so the child stays alive long enough
+ * for the consumer's `onData` listener to register before the process
+ * exits. The trailing `setInterval(() => {}, …)` is what makes the
+ * process linger.
+ */
+export function portableNode(script = ''): { command: string; args: string[] } {
+  return {
+    command: process.platform === 'win32' ? 'node.exe' : 'node',
+    args: script ? ['-e', script] : [],
+  }
+}
+
+/**
+ * Standard "echo a line, then stay alive for a few seconds" script.
+ * Used by tests that need to verify a short burst of PTY output without
+ * the process exiting before the consumer subscribes.
+ */
+export const KEEP_ALIVE_ECHO_SCRIPT =
+  'process.stdout.write("Hello World\\n"); setInterval(() => {}, 5000)'
+
+/**
+ * "Stdin → stdout" REPL script — writes every stdin chunk back to stdout
+ * and stays alive. Used as a Windows-friendly replacement for `cat` /
+ * interactive `bash` (which don't exist on Windows without WSL/Git Bash).
+ */
+export const STDIN_ECHO_KEEP_ALIVE_SCRIPT =
+  'process.stdin.on("data", d => process.stdout.write(d)); setInterval(() => {}, 5000)'
+
 export class ManagedTestClient implements Disposable {
   public readonly ws: WebSocket
   private readonly stack = new DisposableStack()

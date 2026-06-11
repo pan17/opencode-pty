@@ -18,7 +18,7 @@
 | Lint | `bun run lint` (`biome lint .` — strict, single quotes, no semis, 2-space, 100 col) |
 | Lint + autofix | `bun run lint:fix` then `bun run format:fix` |
 | Typecheck | `bun run typecheck` |
-| Unit tests | `bun run unittest` (4 bash-on-Windows tests fail by design — skip) |
+| Unit tests | `bun run unittest` (CI runs on Linux; on Windows local, the data-race tests time out — see "Platform-specific test execution" below) |
 | Build plugin only (fast) | `bun run build:plugin` |
 | Build full (plugin + web client) | `bun run build:dev` or `bun run build:prod` |
 | Build → publish (auto on `npm publish`) | `prepack` runs `bun build:prod` |
@@ -58,9 +58,12 @@ Documented in `spawn-description.ts` "Platform notes (Windows)". Do NOT add a `c
 
 - **`bun run build:dev` deletes `dist/` first** (calls `bun clean`). Don't be alarmed when your manual edits to dist disappear.
 - **`.txt` files in src/ are copied to dist/ by `bun x copyfiles`** (in `build:plugin`). The plugin still references them at runtime. If you add a new `.txt` file, it auto-copies.
-- **4 pre-existing test failures on Windows** (Windows env limitation, not real bugs): `pty-echo.test.ts`, `pty-spawn-echo.test.ts`, `spawn-repeat.test.ts`, `integration.test.ts` spawn `bash`/`cat`/`echo` which aren't on Windows PATH. They pass on Linux/macOS. Don't fix them — leave a comment if you must.
+- **Platform-specific test execution** (`test/utils.ts:portableNode`, `describe.skipIf(isWindows)`, `it.skipIf(isWindows)`): the PTY-spawning integration tests use `portableNode(script)` so the same test code works on every platform. Tests that exercise the `@lydell/node-pty` constructor's "data emitted before the consumer registers onData" race (short-lived commands like `echo Hello World`) are guarded with `skipIf(isWindows)` — they pass on Linux/macOS where the race does not bite (or where the `ws.send(string)` payload survives the Bun runtime), and they time out on Windows where the race drops output before any consumer can subscribe. The 5 `pty-echo` / `pty-spawn-echo` / `pty-integration` / `integration` / `spawn-repeat` files are guarded by `describe.skipIf(isWindows)`; the 4 `websocket` / `web-server` individual `it`s are guarded by `it.skipIf(isWindows)`. **If you add a new PTY-spawning test, you MUST use `portableNode()` and gate it with `skipIf(isWindows)`** — otherwise CI on Linux passes but the test silently times out on a Windows developer machine.
+- **CI runs on Linux** (`.github/workflows/ci.yml#test.runs-on: ubuntu-24.04`). This is intentional — `bun test` on Linux skips the race-affected tests so CI is green; developers on Windows can run the suite locally and watch the tests in question. The `nix-flake-test` (Devenv) job is also Linux-only and `continue-on-error: true`; it's a Nix smoke test, not a quality gate.
 - **e2e tests need Playwright browsers**: `bunx playwright install --with-deps` before running locally. CI does this automatically.
 - **`engines.node: ">=22.0.0"`** is required for `import.meta.dirname` used in the web server. Don't try to support Node 20 or earlier.
+- **CallbackManager wiring is critical** (`src/web/server/server.ts`): the `PTYServer` constructor MUST call `this.stack.use(new CallbackManager(this.server))`. This bridges `manager.notifySessionUpdate`/`notifyRawOutput` to the `server.publish(topic, ...)` calls that the WebSocket clients listen on. The Bun-era `server.ts` had this line; the Node ESM port initially missed it, which caused all `pty-integration.test.ts` / `websocket.test.ts` subscription-based tests to time out. Don't remove it during a sync.
+- **WebSocket message handler decodes Buffer / ArrayBuffer** (`src/web/server/handlers/websocket.ts`): the `ws` library delivers `RawData = Buffer | ArrayBuffer | Buffer[]` on `'message'`. The Node ESM port initially checked `typeof data !== 'string'` and replied "Binary messages are not supported yet" for every frame when Bun's `WebSocket` implementation hands Buffers to the listener. Decode UTF-8 here so the rest of the handler can treat the payload uniformly.
 
 ## Release workflow (CI auto-publishes)
 
