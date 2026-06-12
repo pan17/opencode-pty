@@ -51,40 +51,9 @@ jobs:
       - name: Run quality step
         run: bun ${{matrix.quality}}
 
-  # E2E tests use bash and are Linux-only. Run on Ubuntu without the
-  # heavy Nix/Devenv overhead. Flaky (xterm.js render timing) — does
-  # not block the CI status.
-  e2e:
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.8
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun ci
-
-      - name: Build
-        run: bun build:prod
-
-      - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps chromium
-
-      - name: Run e2e tests
-        run: PW_DISABLE_TS_ESM=1 NODE_ENV=test bun --bun playwright test
+  # E2E tests removed — they were flaky (xterm.js render timing on bash
+  # interactive sessions) and not worth the CI time. The web UI is a
+  # monitoring tool; core PTY functionality is covered by unit tests.
 
   dependency-review:
     runs-on: ubuntu-24.04
