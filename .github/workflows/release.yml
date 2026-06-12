@@ -45,12 +45,17 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          git fetch --tags --force
-          if git tag -l "v$CURRENT_VERSION" | grep -q "v$CURRENT_VERSION"; then
-            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+          # Check if the npm registry already has this version (avoids
+          # re-publishing). git tag is NOT used — npm version patch creates
+          # the tag locally before the workflow runs, so it would always
+          # exist and block every first publish.
+          TAG_EXISTS=false
+          if npm view "${GITHUB_REPOSITORY/\//\/}@$CURRENT_VERSION" version >/dev/null 2>&1; then
+            TAG_EXISTS=true
           fi
+          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
+          # Debug output
+          echo "CURRENT_VERSION=$CURRENT_VERSION PREVIOUS_VERSION=$PREVIOUS_VERSION TAG_EXISTS=$TAG_EXISTS"
 
       - name: Install dependencies
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
