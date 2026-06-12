@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Pre-push hook: block the push if local checks (typecheck, lint,
+# format, unittest) fail. Mirrors the CI quality gate so we never
+# push code that's known-broken locally.
+#
+# Install:  git config core.hooksPath scripts/git-hooks
+# Bypass:   git push --no-verify (NOT recommended)
+
+set -euo pipefail
+
+echo "🪝 pre-push: running local quality checks (bun run check)..."
+echo
+
+if ! bun run check; then
+  echo
+  echo "❌ Local checks failed. Fix errors above before pushing."
+  echo "   Bypass with: git push --no-verify (not recommended)"
+  exit 1
+fi
+
+echo
+echo "✅ Local checks passed. Pushing..."
