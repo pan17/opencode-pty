@@ -46,6 +46,10 @@ git push origin main
 ### 2. 发新版
 
 ```bash
+# 1. 确保本地全部通过
+bun run typecheck && bun run lint && bun run format && bun run unittest
+
+# 2. 版本号 + 推送
 npm version patch   # 或 minor / major
 git push origin main
 ```
@@ -53,11 +57,11 @@ git push origin main
 `npm version` 自动: 改 `package.json` + `git commit` + `git tag vX.Y.Z`。
 
 - `ci.yml` 跑
-- `release.yml` 检测到版本变化 → 自动跑:
+- `release.yml` 先跑**质量门禁** (typecheck + lint + format + unittest)，全部通过后才继续:
   - `bun build:prod`
   - `npm publish --access public --provenance`
   - `gh release create vX.Y.Z` (含自动 changelog)
-- 不需要任何手动操作
+- CI / release.yml 任一环节失败 → 不发版
 
 ## `npm version` 选择
 
