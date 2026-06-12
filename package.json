@@ -3,7 +3,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.js",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Node ESM fork of opencode-pty for OpenCode 1.4+ - interactive PTY management, background processes, input/output with regex filtering",
   "author": "panpan2026",
   "contributors": [
